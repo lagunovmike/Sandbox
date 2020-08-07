@@ -7,49 +7,71 @@ library(dbplyr)
 fileDest <- str_sort(list.files("Ticktick/backups", full.names = TRUE), 
                      decreasing = TRUE)[1]
 ticktick <- read_csv(fileDest, skip = 3, locale = locale(encoding = "UTF-8"))
-names(ticktick) <-make.names(tolower(names(ticktick)))
+id <- c(seq(1:nrow(ticktick)))
+ticktick <- cbind(id,ticktick)
+names(ticktick)[1] <- "ID"
+names(ticktick) <- gsub(" ", "", names(ticktick))
+
+### Connect to the db
+db <- dbConnect(RSQLite::SQLite(), dbname = "Ticktick/ticktickDB.db")
 
 #################################
-#### Backup into the DB
-#################################
-
-
-db <- dbConnect(RSQLite::SQLite(), dbname = "Ticktick/ticktickDB.db", encoding = "UTF-8")
-dbticktick <- dbGetQuery(db, "
-                     SELECT title, \"created.time\"
-                     FROM tt_demo4"); 
-names(dbticktick)[2] <- "created.time"
-sapply(ticktick_srt, class)
-dbListTables(db)
-dbListFields(db, "tt_demo4")
-# Look for changes
-ticktick_srt <- select(ticktick, title, created.time) %>%
-  rename(created.time = created.time, title = title) %>%
-  mutate(created.time = as.numeric(created.time))
-new_short <- setdiff(ticktick_srt, dbticktick)
-new_full <- filter(ticktick, created.time == as.POSIXct(new_short$created.time, origin = "1970-01-01", tz = "UTC"))
-names(new_full) <- dbListFields(db,"ticktick")[-1]
-
-## Append into the db
-dbAppendTable(db, name = "tt_demo", value = new_full)
-dbDisconnect(db)
+### Check whether csv equal to the db, otherwise append new entries
+db_nrow <- dbGetQuery(db, "SELECT COUNT(ID) as count FROM ttdemo")
+if(nrow(ticktick) != db_nrow$count){
+    dbID <- dbGetQuery(db,"SELECT ID FROM ttdemo");
+    # Look for changes
+    new_short <- setdiff(ticktick$ID, dbID$ID)
+    new_full <- filter(ticktick, ID %in% new_short)
+    ## Append into the db
+    dbAppendTable(db, name = "ttdemo", value = new_full)
+} else{
+    cat("Database is up to date")
+}
 
 # Get last month tasks
-remote_(tt)
-dbListFields(db, "ticktick")
-tt <- tbl(db, "ticktick")
+lastm_q <- dbSendQuery(db, "
+          SELECT
+          Title,
+          Priority,
+          DATETIME (CreatedTime, 'unixepoch') as cr,
+          DATETIME (DueDate, 'unixepoch') as dd,
+          DATETIME (CompletedTime, 'unixepoch') as com
+          FROM ttdemo
+          WHERE cr >= strftime('%Y-%m-%d', ?)
+          OR com >= strftime('%Y-%m-%d', ?)
+          OR dd >= strftime('%Y-%m-%d', ?)",
+                       params = rep(as.character(today()-months(1)),3))
+lastm <- dbFetch(lastm_q)
+RSQLite::dbClearResult(lastm_q)
+dbDisconnect(db)
 
-tt %>% 
-  select(Title, DueDate, CreatedTime, CompletedTime) %>%
-  filter(as.POSIXct(CreatedTime, origin = "1970-01-01") < "2020-01-01")
-
-lastmonth <- ticktick %>%
-  select(title, priority, created.time, completed.time) %>%
-  filter(created.time >= today() - months(1) | completed.time >= today() - months(1)) %>%
-  mutate(is.completed = ifelse(is.na(completed.time), 
-                                          "Not completed", "Completed"))
-lastmonth$priority <- factor(lastmonth$priority, levels = c(0,1,3,5),
-       labels = c("None", "Low", "Medium", "High"))
+# Handling DueDate issue
+# Sometimes DueDate is smaller than the creation date
+lastm$dd <- as_datetime(lastm$dd)
+for(i in 1:nrow(lastm)){
+    if(!is.na(lastm$dd[i])){
+        if(date(ymd_hms(lastm$dd[i])) < date(ymd_hms(lastm$cr[i]))){
+            lastm$dd[i] <- ymd_hms(lastm$dd[i]) + days(1)
+        }
+    }
+}
+lastmonth <- tibble(lastm) %>%
+    rename(CreatedTime = cr, DueDate = dd, CompletedTime = com) %>%
+    mutate(CreatedTime = ymd_hms(CreatedTime), 
+           DueDate = ymd_hms(DueDate), 
+           CompletedTime = ymd_hms(CompletedTime)) %>%
+    mutate(overdue = if_else(date(CompletedTime) <= date(DueDate), "on time", 
+                             if_else(date(CompletedTime) > date(DueDate), 
+                                     "overdue", "not finished"))) %>%
+    mutate(IsCompleted = ifelse(is.na(CompletedTime), 
+                                 "not completed", "nompleted")) %>%
+    mutate(Priority = factor(Priority, levels = c("0", "1", "3", "5"),
+                            labels = c("None", "Low", "Medium", "High")))
+    
+lastmonth$Priority <- factor(lastmonth$Priority, levels = c(0,1,3,5),
+                             labels = c(0 = "None", 1 = "Low", 3 = "Medium", 5 = "High"))
+lastmonth
 # Completion Rate
 tasks <- nrow(lastmonth)
 completed <- sum(!is.na(lastmonth$completed.time))
