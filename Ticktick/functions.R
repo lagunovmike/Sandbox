@@ -58,8 +58,6 @@ getdata <- function(period = "all"){
         stop("Wrong period!")
     }
     tt_data <- dbFetch(getdata_q)
-    RSQLite::dbClearResult(getdata_q)
-    dbDisconnect(db)
     
     # Fixing DueDate issue
     tt_data$dd <- as_datetime(tt_data$dd)
@@ -72,6 +70,8 @@ getdata <- function(period = "all"){
             }
         }
     }
-    cat("Done")
+    cat(paste(period, "data retrieved"))
     return(tt_data)
+    RSQLite::dbClearResult(getdata_q)
+    dbDisconnect(db)
 }
