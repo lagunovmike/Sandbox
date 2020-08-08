@@ -13,14 +13,14 @@ read_latest <- function(path = "Ticktick/backups"){
 
 updateDB <- function(backupFile = latest_backup, db_path = "Ticktick/ticktickDB.db"){
     db <- dbConnect(RSQLite::SQLite(), dbname = db_path)
-    db_nrow <- dbGetQuery(db, "SELECT COUNT(ID) as count FROM ttdemo")
+    db_nrow <- dbGetQuery(db, "SELECT COUNT(ID) as count FROM ticktick")
     if(nrow(backupFile) != db_nrow$count){
-        dbID <- dbGetQuery(db,"SELECT ID FROM ttdemo");
+        dbID <- dbGetQuery(db,"SELECT ID FROM ticktick");
         # Look for changes
         new_short <- setdiff(backupFile$ID, dbID$ID)
         new_full <- filter(backupFile, ID %in% new_short)
         ## Append into the db
-        dbAppendTable(db, name = "ttdemo", value = new_full)
+        dbAppendTable(db, name = "ticktick", value = new_full)
         dbDisconnect(db)
         cat(paste("Updated:", length(new_short), "new enrties"))
     } else{
@@ -39,7 +39,7 @@ getdata <- function(period = "all", db_path = "Ticktick/ticktickDB.db"){
           DATETIME (CreatedTime, 'unixepoch') as cr,
           DATETIME (DueDate, 'unixepoch') as dd,
           DATETIME (CompletedTime, 'unixepoch') as com
-          FROM ttdemo;")
+          FROM ticktick;")
     } else if (period == "last month"){
         getdata_q <- dbSendQuery(db,"
           SELECT
@@ -48,7 +48,7 @@ getdata <- function(period = "all", db_path = "Ticktick/ticktickDB.db"){
           DATETIME (CreatedTime, 'unixepoch') as cr,
           DATETIME (DueDate, 'unixepoch') as dd,
           DATETIME (CompletedTime, 'unixepoch') as com
-          FROM ttdemo
+          FROM ticktick
           WHERE cr >= strftime('%Y-%m-%d', ?)
           OR com >= strftime('%Y-%m-%d', ?)
           OR dd >= strftime('%Y-%m-%d', ?);
