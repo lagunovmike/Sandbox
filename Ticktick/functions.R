@@ -11,8 +11,8 @@ read_latest <- function(path = "Ticktick/backups"){
 }
 
 
-updateDB <- function(backupFile = latest_backup){
-    db <- dbConnect(RSQLite::SQLite(), dbname = "Ticktick/ticktickDB.db")
+updateDB <- function(backupFile = latest_backup, db_path = "Ticktick/ticktickDB.db"){
+    db <- dbConnect(RSQLite::SQLite(), dbname = db_path)
     db_nrow <- dbGetQuery(db, "SELECT COUNT(ID) as count FROM ttdemo")
     if(nrow(backupFile) != db_nrow$count){
         dbID <- dbGetQuery(db,"SELECT ID FROM ttdemo");
@@ -29,8 +29,8 @@ updateDB <- function(backupFile = latest_backup){
 }
 
 
-getdata <- function(period = "all"){
-    db <- dbConnect(RSQLite::SQLite(), dbname = "Ticktick/ticktickDB.db")
+getdata <- function(period = "all", db_path = "Ticktick/ticktickDB.db"){
+    db <- dbConnect(RSQLite::SQLite(), dbname = db_path)
     if(period == "all"){
         getdata_q <- dbSendQuery(db,"
           SELECT

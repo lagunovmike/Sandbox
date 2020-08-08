@@ -1,0 +1,92 @@
+---
+title: "Personal ticktick report"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r "append libraries", include=FALSE}
+library(lubridate)
+library(tidyverse)
+library(DBI)
+library(zoo)
+library(knitr)
+library(kableExtra)
+library(RColorBrewer)
+source("functions.R")
+```
+
+```{r "read latest backup" , include=FALSE}
+#### Reading data
+latest_backup <- read_latest(path = "backups")
+```
+
+```{r "update db", echo = FALSE}
+updateDB(db_path = "ticktickDB.db")
+```
+```{r "retrieve from db", include=FALSE}
+tt_db <- getdata(period = "last month", db_path = "ticktickDB.db")
+```
+
+```{r manipulation, include=FALSE}
+ticktick <- tibble(tt_db) %>%
+    rename(CreatedTime = cr, DueDate = dd, CompletedTime = com) %>%
+    mutate(CreatedTime = ymd_hms(CreatedTime), 
+           DueDate = ymd_hms(DueDate), 
+           CompletedTime = ymd_hms(CompletedTime)) %>%
+    mutate(Overdue = if_else(date(CompletedTime) <= date(DueDate), "on time", 
+                             if_else(date(CompletedTime) > date(DueDate), 
+                                     "overdue", "not finished"))) %>%
+    mutate(IsCompleted = ifelse(is.na(CompletedTime), 
+                                 "not completed", "nompleted")) %>%
+    mutate(Priority = factor(Priority, levels = c("0", "1", "3", "5"),
+                            labels = c("None", "Low", "Medium", "High"))) %>%
+    mutate(ComplDelay = date(CompletedTime) - date(DueDate))
+```
+
+
+```{r average tasks per day, echo = FALSE, fig.align = 'center'}
+### Average completed tasks per day
+avg_by_day <- ticktick %>%
+    select(CompletedTime) %>%
+    filter(!is.na(CompletedTime)) %>%
+    group_by(day = date(CompletedTime)) %>%
+    summarise(done_avg = n(), .groups = "drop")
+# plot
+ggplot(avg_by_day, aes(day, done_avg)) +
+    geom_hline(yintercept =  mean(avg_by_day$done_avg, na.rm = TRUE),
+               linetype = "dashed", 
+               color = "#D95F02", 
+               size = 1.2) +
+    geom_point(aes(size = 1.2), color = "#7570B3") +
+    geom_line(size = 1.1,color = "#7570B3") +
+    xlab("Day") +
+    ylab ("Count") +
+    ggtitle("Average finished tasks per day") +
+    theme_minimal() +
+    theme(legend.position = "none", axis.title.x = element_text(vjust=-1),
+          axis.title.y = element_text(vjust = 2),
+          plot.margin = margin(10,10,10,10),
+          plot.title = element_text(hjust = 0.5))
+```
+
+```{r "Average completed tasks per day", echo = FALSE, fig.align = 'center'}
+### Average completed tasks per day
+day_priority <- ticktick %>%
+    select(Priority, CompletedTime) %>%
+    filter(!is.na(CompletedTime)) %>%
+    group_by(Day = date(CompletedTime), Priority) %>%
+    summarise(Count = length(Priority), .groups = "drop")
+
+ggplot(day_priority, aes(Day, Count, fill = Priority)) +
+    geom_bar(stat = "identity") +
+    ggtitle("Finished tasks by priority", ) +
+    scale_fill_brewer(palette="Greens") +
+    theme_minimal() +
+    theme(axis.title.x = element_text(vjust=-1),
+          axis.title.y = element_text(vjust = 2),
+          plot.margin = margin(10,10,10,10),
+          plot.title = element_text(hjust = 0.5))
+
+```
