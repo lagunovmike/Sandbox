@@ -55,20 +55,20 @@ avg_by_day <- ticktick %>%
     summarise(done_avg = n(), .groups = "drop")
 # plot
 ggplot(avg_by_day, aes(day, done_avg)) +
-    geom_hline(yintercept =  mean(avg_by_day$done_avg, na.rm = TRUE),
-               linetype = "dashed", 
-               color = "#D95F02", 
-               size = 1.2) +
-    geom_point(aes(size = 1.2), color = "#7570B3") +
-    geom_line(size = 1.1,color = "#7570B3") +
-    xlab("Day") +
-    ylab ("Count") +
-    ggtitle("Average finished tasks per day") +
-    theme_minimal() +
-    theme(legend.position = "none", axis.title.x = element_text(vjust=-1),
-          axis.title.y = element_text(vjust = 2),
-          plot.margin = margin(10,10,10,10),
-          plot.title = element_text(hjust = 0.5))
+  geom_point(size = 4, color = "#7570B3") +
+  geom_line(aes(color = "Tasks done"), linetype = "solid", size = 1.1) +
+  geom_hline(aes(yintercept = mean(done_avg), color = "Average"), 
+             linetype = "dashed", size = 1.1) +
+  ylab("Finished tasks") +
+  xlab("Day") +
+  scale_color_manual(values = c('Tasks done' = '#7570B3', 'Average' = '#D95F02'), guide = guide_legend(override.aes = list(linetype = c(1,2), size = c(2,2)), title = "Line")) +
+  ggtitle("Average finished tasks per day") +
+  coord_cartesian(ylim = c(0, max(avg_by_day$done_avg))) +
+  theme_minimal() +
+  theme(axis.title.x = element_text(vjust=-1),
+        axis.title.y = element_text(vjust = 2),
+        plot.margin = margin(10,10,10,10),
+        plot.title = element_text(hjust = 0.5))
 ```
 
 ```{r "Average completed tasks per day", echo = FALSE, fig.align = 'center'}

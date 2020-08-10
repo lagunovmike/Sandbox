@@ -8,7 +8,6 @@ source("Ticktick/functions.R")
 latest_backup <- read_latest()
 # Update database
 updateDB()
-
 # Get data from a period ("all" or "last month")
 tt_db <- getdata(period = "all")
 

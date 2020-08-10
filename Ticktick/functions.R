@@ -2,9 +2,6 @@ read_latest <- function(path = "Ticktick/backups"){
     fileDest <- str_sort(list.files(path, full.names = TRUE), 
                          decreasing = TRUE)[1]
     ticktick <- read_csv(fileDest, skip = 3, locale = locale(encoding = "UTF-8"))
-    id <- c(seq(1:nrow(ticktick)))
-    ticktick <- cbind(id,ticktick)
-    names(ticktick)[1] <- "ID"
     names(ticktick) <- gsub(" ", "", names(ticktick))
     cat("Done")
     return(ticktick)
@@ -14,20 +11,23 @@ read_latest <- function(path = "Ticktick/backups"){
 updateDB <- function(backupFile = latest_backup, db_path = "Ticktick/ticktickDB.db"){
     db <- dbConnect(RSQLite::SQLite(), dbname = db_path)
     db_nrow <- dbGetQuery(db, "SELECT COUNT(ID) as count FROM ticktick")
-    if(nrow(backupFile) != db_nrow$count){
-        dbID <- dbGetQuery(db,"SELECT ID FROM ticktick");
+    if(nrow(backupFile) > db_nrow$count){
+        dbID <- dbGetQuery(db,"SELECT * FROM ticktick");
+        backupFile$StartDate <- unclass(backupFile$StartDate)
+        backupFile$DueDate <- unclass(backupFile$DueDate)
+        backupFile$CreatedTime <- unclass(backupFile$CreatedTime)
+        backupFile$CompletedTime <- unclass(backupFile$CompletedTime)
         # Look for changes
-        new_short <- setdiff(backupFile$ID, dbID$ID)
-        new_full <- filter(backupFile, ID %in% new_short)
+        new_full <- setdiff(backupFile, dbID[,-1])
+        #new_full <- filter(backupFile, CreatedTime %in% new_short)
         ## Append into the db
         dbAppendTable(db, name = "ticktick", value = new_full)
         dbDisconnect(db)
-        cat(paste("Updated:", length(new_short), "new enrties"))
+        cat(paste("Database updated:", nrow(new_full)), "new enrties")
     } else{
         cat("Database is up to date")
     }
 }
-
 
 getdata <- function(period = "all", db_path = "Ticktick/ticktickDB.db"){
     db <- dbConnect(RSQLite::SQLite(), dbname = db_path)
