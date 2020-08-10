@@ -47,7 +47,7 @@ ticktick <- tibble(tt_db) %>%
 
 
 ```{r average tasks per day, echo = FALSE, fig.align = 'center'}
-### Average completed tasks per day
+### Average completed tasks per day with plot
 by_day <- ticktick %>%
     select(CompletedTime) %>%
     filter(!is.na(CompletedTime)) %>%
