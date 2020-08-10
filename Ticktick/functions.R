@@ -4,13 +4,14 @@ read_latest <- function(path = "Ticktick/backups"){
     ticktick <- read_csv(fileDest, skip = 3, locale = locale(encoding = "UTF-8"))
     names(ticktick) <- gsub(" ", "", names(ticktick))
     cat("Done")
+    ticktick <- select(ticktick, -taskId, -parentId)
     return(ticktick)
 }
 
 
 updateDB <- function(backupFile = latest_backup, db_path = "Ticktick/ticktickDB.db"){
     db <- dbConnect(RSQLite::SQLite(), dbname = db_path)
-    db_nrow <- dbGetQuery(db, "SELECT COUNT(ID) as count FROM ticktick")
+    db_nrow <- dbGetQuery(db, "SELECT COUNT(taskId) as count FROM ticktick")
     if(nrow(backupFile) > db_nrow$count){
         dbID <- dbGetQuery(db,"SELECT * FROM ticktick");
         backupFile$StartDate <- unclass(backupFile$StartDate)
@@ -28,6 +29,7 @@ updateDB <- function(backupFile = latest_backup, db_path = "Ticktick/ticktickDB.
         cat("Database is up to date")
     }
 }
+
 
 getdata <- function(period = "all", db_path = "Ticktick/ticktickDB.db"){
     db <- dbConnect(RSQLite::SQLite(), dbname = db_path)

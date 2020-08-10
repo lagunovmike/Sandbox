@@ -48,22 +48,22 @@ ticktick <- tibble(tt_db) %>%
 
 ```{r average tasks per day, echo = FALSE, fig.align = 'center'}
 ### Average completed tasks per day
-avg_by_day <- ticktick %>%
+by_day <- ticktick %>%
     select(CompletedTime) %>%
     filter(!is.na(CompletedTime)) %>%
     group_by(day = date(CompletedTime)) %>%
-    summarise(done_avg = n(), .groups = "drop")
+    summarise(count = n(), .groups = "drop")
 # plot
-ggplot(avg_by_day, aes(day, done_avg)) +
+ggplot(by_day, aes(day, count)) +
   geom_point(size = 4, color = "#7570B3") +
   geom_line(aes(color = "Tasks done"), linetype = "solid", size = 1.1) +
-  geom_hline(aes(yintercept = mean(done_avg), color = "Average"), 
+  geom_hline(aes(yintercept = mean(count), color = "Average"), 
              linetype = "dashed", size = 1.1) +
-  ylab("Finished tasks") +
+  ylab("Count") +
   xlab("Day") +
   scale_color_manual(values = c('Tasks done' = '#7570B3', 'Average' = '#D95F02'), guide = guide_legend(override.aes = list(linetype = c(1,2), size = c(2,2)), title = "Line")) +
   ggtitle("Average finished tasks per day") +
-  coord_cartesian(ylim = c(0, max(avg_by_day$done_avg))) +
+  coord_cartesian(ylim = c(0, max(by_day$count))) +
   theme_minimal() +
   theme(axis.title.x = element_text(vjust=-1),
         axis.title.y = element_text(vjust = 2),
