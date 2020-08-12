@@ -12,7 +12,6 @@ library(tidyverse)
 library(DBI)
 library(zoo)
 library(knitr)
-library(kableExtra)
 library(RColorBrewer)
 source("functions.R")
 ```
