@@ -12,6 +12,7 @@ tj_api <- function(path){
     url <- modify_url("https://api.tjournal.ru/", path = path)
     resp <- GET(url)
     
+    ### Fixing Errors
     # look for the 429 error
     if(grepl("429 Too Many", resp) == TRUE){
         cat("\n","429 error, sleeping", "\n")
@@ -20,6 +21,12 @@ tj_api <- function(path){
         #try again
         resp <- GET(url)
     }
+    # look for the error 500
+    if(grepl("технические работы", resp) == TRUE){
+        return(500)
+        break
+    }
+    
     parsed <- jsonlite::fromJSON(content(resp, "text"), simplifyVector = TRUE,
                                  flatten = TRUE)
     
@@ -57,11 +64,21 @@ get_collection <- function(n = 10, offset = 0){
         link <- paste0("v1.8/entry/", i+offset)
         get_entry <- tj_api(link)
         
+        if(class(get_entry) == "numeric"){
+            if(get_entry == 500){
+                cat("\n","error: 500, skipping ID", "\n")
+                next
+            } else{
+                cat("\n","some new error", "\n")
+                next
+            }
+        }
+        
         # skip if 404
         if(get_entry$response$status_code == 404){
             count_sleep <- count_sleep + 1
             Sys.sleep(0.5)
-            next  
+            next
         } 
         
         # data fetching
@@ -115,16 +132,10 @@ latest_id <- latest_news$content$result$id[1]
 # Get info before start
 db <- dbConnect(RSQLite::SQLite(), dbname = "news.db")
 max_id_db <- as.vector(dbGetQuery(db, "SELECT MAX(id) as max FROM tjournal")$max)
-last_pub <- as.vector(dbGetQuery(db, 
-                                 "SELECT 
-                                 MAX(DATETIME (pub_date, 'unixepoch')) as pb 
-                                 FROM tjournal")$pb)
 dbDisconnect(db)
 
 # Place info
-cat("Total:", max_id_db)
-cat("The most recent publication is from:", 
-    as.character(date(as_datetime(last_pub))))
-cat("Started id:", latest_id, "- Finished prop:", round(max_id_db/latest_id,2))
+cat("Total:",  latest_id)
+cat("Started id:", max_id_db, "- Finished prop:", round(max_id_db/latest_id,2))
 
 my_collection <- get_collection(sum(latest_id,-max_id_db), offset = max_id_db)
