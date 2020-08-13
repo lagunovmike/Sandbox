@@ -53,9 +53,24 @@ by_wday <- db_data %>%
 barplot(by_wday$count_wday~by_wday$wday)
 
 by_hms <- db_data %>%
-    group_by(pub_time = hour(pub_date)) %>%
-    summarize(count = n(), .groups = "drop")
+    group_by(pub_hour = hour(pub_date), pub_minute = minute(pub_date)) %>%
+    summarize(count = n()) %>%
+    group_by(pub_hour)%>%
+    summarize(average = mean(count))
 
+plot(by_hms$pub_hour, by_hms$average, pch = 19, 
+     xlab = "Час", 
+     ylab = "Количество",
+     main = "Количество постов по часам")
+lines(by_hms$pub_hour, by_hms$average)
 
-plot(by_hms$pub_time, by_hms$count, pch = 19)
-lines(by_hms$pub_time, by_hms$count)
+ggplot(by_hms, aes(pub_hour, average)) +
+    geom_line(size = 2, color = "blue") +
+    geom_point(size = 3) +
+    #geom_smooth(se = FALSE, size = 2) +
+    xlab("Час") +
+    ylab("Количество") +
+    ggtitle("Количество постов по часам за сутки") +
+    theme_minimal()
+
+plot(db_data$id, db_data$pub_date, type = "p")
