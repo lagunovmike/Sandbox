@@ -4,21 +4,39 @@ library(jsonlite) #parsing json
 library(lubridate) #date converting
 library(DBI) #connecting to the db
 library(dplyr)
+library(ggplot2)
 library(zoo)
+
 Sys.setlocale("LC_CTYPE", "russian") #solve encoding issues
 
 db <- dbConnect(RSQLite::SQLite(), "news.db")
 db_data <- dbGetQuery(db, "SELECT * FROM tjournal")
 dbDisconnect(db)
 db_data$pub_date <- as_datetime(db_data$pub_date, tz = "Europe/Moscow")
-pub_date <- date(db_data$pub_date)
 
-b_date <- tapply(pub_date, date(pub_date), length)
+by_day <- db_data %>%
+    select(title, pub_date) %>%
+    filter(title != "Статья удалена") %>%
+    group_by(date = date(pub_date)) %>%
+    summarise(pubs = n(), .groups = "drop") %>%
+    mutate(rollmean = rollmean(pubs, 30, fill = "extend")) %>%
+    arrange(date)
+# plot "pubs per day"
+ggplot(by_day, aes(date, pubs)) +
+    geom_point() +
+    geom_line(aes(date, rollmean), size = .2, color = "red") +
+    geom_hline(aes(yintercept = mean(pubs)), 
+               linetype = "longdash", color = "orange", size = 1) +
+    ggtitle("Non-deleted publications per day") +
+    labs(x = "Date", y = "Amount", color = "") +
+    theme_minimal()
 
-by_day <- data.frame(day = unique(pub_date), count = b_date, row.names = seq_along(b_date))
-by_day <- arrange(by_day, day) %>%
-    mutate(rollmean = round(rollmean(x = count, k = 7, fill = "extend"),2))
-
+by_month <- by_day %>%
+    filter(year(day) == "2018" | year(day) == "2019") %>%
+    group_by(month = month(day, label = TRUE)) %>%
+    summarise(count = mean(count), .groups = "drop")
+qplot(by_month$month, by_month$count)
+    
 with(by_day, plot(day, count))
 with(by_day, lines(day, rollmean, col = "red"))
 abline(h = mean(by_day$count), col = "blue")
@@ -54,9 +72,9 @@ barplot(by_wday$count_wday~by_wday$wday)
 
 by_hms <- db_data %>%
     group_by(pub_hour = hour(pub_date), pub_minute = minute(pub_date)) %>%
-    summarize(count = n()) %>%
+    summarize(count = n(), .groups = "drop") %>%
     group_by(pub_hour)%>%
-    summarize(average = mean(count))
+    summarize(average = mean(count), .groups = "drop")
 
 plot(by_hms$pub_hour, by_hms$average, pch = 19, 
      xlab = "Час", 
@@ -73,4 +91,7 @@ ggplot(by_hms, aes(pub_hour, average)) +
     ggtitle("Количество постов по часам за сутки") +
     theme_minimal()
 
-plot(db_data$id, db_data$pub_date, type = "p")
+plot(db_data$id, db_data$pub_date, type = "p", xlab = "Post ID", ylab = "Date", 
+     xlim = c(126000, max(db_data$id)), ylim = c(as.POSIXct("2019-11-01"), max(db_data$pub_date)))
+abline(h = as.POSIXct("2020-01-01"), lty = "dashed", col = "orange")
+
