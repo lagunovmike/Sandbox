@@ -56,7 +56,7 @@ get_collection <- function(n = 10, offset = 0){
         # sleep for a while every n entries
         if(count_sleep == 500){
             cat("\n", "resting")
-            Sys.sleep(20)
+            Sys.sleep(18)
             cat("\n")
             count_sleep <- 1
         }
@@ -77,7 +77,7 @@ get_collection <- function(n = 10, offset = 0){
         # skip if 404
         if(get_entry$response$status_code == 404){
             count_sleep <- count_sleep + 1
-            Sys.sleep(0.5)
+            Sys.sleep(0.4)
             next
         } 
         
@@ -107,27 +107,23 @@ get_collection <- function(n = 10, offset = 0){
             db <- dbConnect(RSQLite::SQLite(), dbname = "news.db")
             dbAppendTable(db, name = "tjournal", value = collection)
             dbDisconnect(db)
-            Sys.sleep(2)
+            Sys.sleep(1)
             cat("   Done: ",i)
         }
         
         # raise counters
         count_to_db <- count_to_db + 1
         count_sleep <- count_sleep + 1
-        Sys.sleep(0.1)
+        Sys.sleep(0.05)
         
     }
-    db <- dbConnect(RSQLite::SQLite(), dbname = "news.db")
-    parsed_id <- as.vector(dbGetQuery(db, 
-                                      "SELECT MAX(id) as max FROM tjournal")$max)
-    con("Completed:", parsed_id - max_id_db)
-    dbDisconnect(db)
+    cat("\n","Completed!")
 }
 ### END FUNCTION
 
 
-latest_news <- tj_api("v1.8/news/default/recent")
-latest_id <- latest_news$content$result$id[1]
+latest_news <- tj_api("v1.8/timeline/index/recent")
+latest_id <- max(latest_news$content$result$id)
 
 # Get info before start
 db <- dbConnect(RSQLite::SQLite(), dbname = "news.db")
