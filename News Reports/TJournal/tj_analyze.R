@@ -166,3 +166,18 @@ editoral
 editoral2 <- db_data %>%
     select(pub_date, isEditoral) %>%
     mutate(pub_date = date(pub_date), entry = 1)
+
+
+# Correlation between hits and comments
+hitcom <- db_data %>%
+    filter(hits >= quantile(hits, 0.25), comment_count >= quantile(comment_count, 0.25))
+hit_countLM <- lm(comment_count ~ hits, hitcom)
+summary(hit_countLM)
+hitQuant <- quantile(db_data$hits, .95)
+comQuant <- quantile(db_data$comment_count, .95)
+cor(hitcom$hits, hitcom$comment_count)
+
+ggplot(hitcom, aes(hits, comment_count)) +
+    geom_point(alpha = 0.01,) +
+    geom_smooth(method = lm, color = "blue") +
+    coord_cartesian(xlim = c(0, hitQuant), ylim = c(0, comQuant))

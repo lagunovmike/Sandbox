@@ -1,12 +1,14 @@
 ---
-title: Отчет за неделю от TJournal
-output: 
+title: Отчет за неделю от VC.ru
+author: 
+output:
   html_document: 
     df_print: kable
 ---
 
 ```{r set-options, include = FALSE}
-Sys.setlocale("LC_CTYPE", "russian")
+#Sys.setlocale("LC_CTYPE", "russian")
+Sys.setlocale("LC_ALL", "russian")
 ```
 
 ```{r, results='asis', include = FALSE}
@@ -21,8 +23,8 @@ library(kableExtra)
 
 
 ```{r, include = FALSE}
-tj_api <- function(path){
-    url <- modify_url("https://api.tjournal.ru/", path = path)
+vc_api <- function(path){
+    url <- modify_url("https://api.vc.ru/", path = path)
     resp <- GET(url)
     parsed <- jsonlite::fromJSON(content(resp, "text"), simplifyVector = FALSE)
     
@@ -32,13 +34,13 @@ tj_api <- function(path){
             path = path,
             response = resp
         ),
-        class = "TJ_api"
+        class = "VC_api"
     )
 }
 
 
-print.tj_api <- function(x, ...) {
-    cat("<tj_api ", x$path, ">\n", sep = "")
+print.vc_api <- function(x, ...) {
+    cat("<vc_api ", x$path, ">\n", sep = "")
     str(x$content)
     invisible(x)
 }
@@ -47,11 +49,11 @@ print.tj_api <- function(x, ...) {
 ```{r, echo = F}
 get_popular <- function(period = "week"){
     url <- paste0("v1.8/timeline/mainpage/", period)
-    mainpage <- tj_api(url)
+    mainpage <- vc_api(url)
     titles <- sapply(mainpage$content$result, function(x){x$title})
     hits <- sapply(mainpage$content$result, function(x){x$hitsCount})
     link <- sapply(mainpage$content$result, function(x){x$url})
-    link_md <- paste("[link]","(",link,")",sep="")
+    title_md <- paste0("[", titles, "]", "(", link, ")")
     img <- sapply(mainpage$content$result, function(x){x$cover$url})
     img_type <- sapply(mainpage$content$result, function(x){x$cover$additionalData$type})
     img_md <- c()
@@ -69,41 +71,29 @@ get_popular <- function(period = "week"){
     pub_date <- sapply(mainpage$content$result, function(x){x$date})
     brief <- sapply(mainpage$content$result, function(x){x$summarize})
     id <- seq()
-    together <- tibble(title = titles,
+    together <- tibble(title = title_md,
                        summary = brief,
                        hits = hits, 
                        image = img_md,
-                       date = date(as_datetime(pub_date)), 
-                       link = link_md) %>%
+                       date = strftime(as_datetime(pub_date), "%d %b")) %>%
       arrange(desc(hits)) %>%
-      mutate(id = seq_along(title), prop = round(cumsum(hits)/sum(hits),2)) %>%
+      mutate(id = seq_along(title)) %>%
       relocate(id)
     return(together)
 }
 together <- get_popular()
+together <- slice(together, 1:10)
 ```
 
 
-### От `r day(min(together$date))` до `r day(max(together$date))`, `r month(max(together$date),label = TRUE, locale = Sys.setlocale("LC_CTYPE", "russian"))`
-Всего: `r nrow(together)` новостей в списке
 ```{r, echo = F}
-kable(together, col.names = c("Номер",
+kable(together, col.names = c("№",
                               "Заголовок",
                               "Краткое содержание",
                               "Просмотры",
                               "Картинка",
-                              "Дата",
-                              "Ссылка",
-                              "Доля"),) %>%
-  kable_styling(bootstrap_options = c("striped"), fixed_thead = T)
-
-plot(together$id, together$hits)
-plot(together$prop)
-abline(h = 0.8)
+                              "Дата"),) %>%
+  kable_styling(bootstrap_options = c("striped"), fixed_thead = T) %>%
+  column_spec(2, width = "18em") %>%
+  column_spec(6, width = "4em")
 ```
-
-
-
-
-
-
