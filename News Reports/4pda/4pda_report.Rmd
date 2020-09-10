@@ -1,0 +1,21 @@
+---
+title: "4pda_report"
+author: "Michael Lagunov"
+date: "8/19/2020"
+output: html_document
+---
+```{r}
+Sys.setlocale("LC_ALL", "russian")
+library(rvest)
+```
+
+
+```{r}
+wsite <- read_html("https://4pda.ru", encoding = "latin1")
+a <- wsite %>%
+    html_nodes(".list-post-title") %>%
+    html_text()
+repair_encoding(a)
+a
+```
+

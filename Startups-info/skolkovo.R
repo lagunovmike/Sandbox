@@ -72,7 +72,7 @@ parseSK <- function(from, to){
 db <- dbConnect(RSQLite::SQLite(), dbname = "Startups.db")
 from <- as.vector(dbGetQuery(db, "SELECT MAX(ID) as max FROM skolkovo")$max) + 1
 dbDisconnect(db)
-to <- 1124000
+to <- 1125000
 
 res <- parseSK(from, to)
 
